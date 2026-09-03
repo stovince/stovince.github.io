@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vincent Bittencourt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0b0b0b;
+    --panel: #131313;
+    --line: #2a2a2a;
+    --line-bright: #4a4a4a;
+    --text: #e8e8e6;
+    --text-dim: #9a9a97;
+    --text-faint: #5c5c59;
+    --white: #ffffff;
+    --up: #cfcfcf;
+    --down: #6b6b6b;
+    --font-head: 'Archivo', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  a{ color: inherit; }
+
+  .wrap{ max-width: 900px; margin: 0 auto; padding: 0 28px 90px; }
+
+  /* ===== Ticker tape ===== */
+  .ticker{
+    width: 100%;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line);
+    background: #060606;
+    white-space: nowrap;
+    position: relative;
+  }
+  .ticker::before, .ticker::after{
+    content:'';
+    position:absolute; top:0; bottom:0; width: 60px; z-index: 2;
+    pointer-events:none;
+  }
+  .ticker::before{ left:0; background: linear-gradient(90deg, #060606, transparent); }
+  .ticker::after{ right:0; background: linear-gradient(270deg, #060606, transparent); }
+
+  /* Direction: 'left' = scrolls right-to-left (standard ticker convention, default).
+     Change to 'right' below to scroll left-to-right instead. */
+  .ticker-track{
+    display:inline-flex;
+    animation: scroll-left 38s linear infinite;
+    padding: 11px 0;
+  }
+  .ticker-track.dir-right{
+    animation-name: scroll-right;
+  }
+  .ticker-track span.item{
+    display:inline-flex; align-items:baseline; gap: 7px;
+    font-size: 11.5px; letter-spacing: 0.04em;
+    color: var(--text-dim);
+    padding: 0 22px;
+    border-right: 1px solid var(--line);
+  }
+  .ticker-track span.item b{ color: var(--text); font-weight: 500; }
+  .ticker-track span.item .chg.up{ color: var(--up); }
+  .ticker-track span.item .chg.down{ color: var(--down); }
+
+  @keyframes scroll-left{
+    from{ transform: translateX(0); }
+    to{ transform: translateX(-50%); }
+  }
+  @keyframes scroll-right{
+    from{ transform: translateX(-50%); }
+    to{ transform: translateX(0); }
+  }
+
+  /* ===== Header ===== */
+  header{
+    padding: 40px 0 36px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .index-no{
+    font-size: 11px; letter-spacing: 0.14em; color: var(--text-faint);
+    margin-bottom: 22px;
+  }
+
+  .name{
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 54px;
+    letter-spacing: -0.01em;
+    color: var(--white);
+    line-height: 1.02;
+    margin-bottom: 10px;
+  }
+
+  .role{
+    font-size: 16px;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+  }
+
+  .current{
+    display:flex; gap: 14px; align-items:flex-start;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    max-width: 560px;
+    margin-bottom: 26px;
+  }
+  .current .dot{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--white);
+    margin-top: 6px; flex: none;
+  }
+  .current .org{ font-size: 12px; letter-spacing:.06em; color: var(--text-faint); margin-bottom:3px; }
+  .current .desc{ font-size: 12.5px; color: var(--text-dim); }
+
+  .links{ display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 26px; }
+  .btn{
+    display:inline-block;
+    border: 1px solid var(--line-bright);
+    color: var(--text);
+    padding: 9px 15px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-decoration:none;
+    transition: border-color .15s, color .15s;
+  }
+  .btn:hover{ border-color: var(--white); color: var(--white); }
+
+  .meta-row{
+    display:flex; gap: 30px; flex-wrap:wrap;
+    font-size: 12px; color: var(--text-faint);
+    margin-bottom: 30px;
+  }
+  .meta-row b{ color: var(--text-dim); font-weight:500; }
+  .meta-row .val{ color: var(--text); }
+
+  /* ===== Live feed panel ===== */
+  .feed{
+    border: 1px solid var(--line);
+    background: #070707;
+    position: relative;
+    height: 220px;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 14px 10px;
+    overflow: hidden;
+  }
+  .feed-top{
+    display:flex; align-items:baseline; justify-content:space-between;
+    font-size: 10px; letter-spacing:.14em; color: var(--text-faint);
+  }
+  .feed-top .session{ display:inline-flex; align-items:center; gap:6px; }
+  .feed-top .session .dot{
+    width:6px; height:6px; border-radius:50%;
+    background: var(--text-faint);
+  }
+  .feed-top .session.open .dot{
+    background:#e8e8e6;
+    animation: sessionPulse 1.6s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(232,232,230,0.6);
+  }
+  @keyframes sessionPulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  .feed-quote{
+    display:flex; align-items:baseline; justify-content:center;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .feed-quote .sym{
+    font-size: 12px; letter-spacing:.10em; color: var(--text-dim);
+  }
+  .feed-quote .price{
+    font-family: var(--font-mono); font-size: 24px;
+    color: var(--white); font-weight: 500;
+    letter-spacing: .01em;
+    font-variant-numeric: tabular-nums;
+    min-width: 8ch; text-align: center;
+  }
+  .feed-quote .chg{
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    min-width: 15ch;
+  }
+  .feed-quote .chg.up{ color: var(--up); }
+  .feed-quote .chg.dn{ color: var(--down); }
+
+  .feed canvas{ display:block; width:100%; flex:1; min-height:0; margin-top: 6px; }
+
+  .feed-stats{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 12px;
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .feed-stats .lbl{
+    color: var(--text-faint);
+    letter-spacing:.12em;
+    margin-right: 5px;
+  }
+
+  /* ===== Sections ===== */
+  .section{ margin-bottom: 46px; }
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom: 18px;
+  }
+  .section-head h2{
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    color: var(--white);
+    text-transform: uppercase;
+  }
+  .section-head .count{ font-size: 11px; color: var(--text-faint); }
+
+  .entry{
+    display:grid;
+    grid-template-columns: 150px 1fr;
+    gap: 18px;
+    padding: 20px 0;
+    border-top: 1px solid var(--line);
+  }
+  .entry:last-child{ border-bottom: 1px solid var(--line); }
+
+  .entry .period{ font-size: 11.5px; color: var(--text-faint); padding-top: 3px; }
+  .entry > .period:empty{ display: none; }
+  .entry:has(> .period:empty){ grid-template-columns: 1fr; }
+  .entry .period .status{ display:block; margin-top:6px; font-size:10px; letter-spacing:.08em; color: var(--text-dim); }
+
+  .entry .org{ font-size: 12px; letter-spacing:.04em; color: var(--text-faint); margin-bottom: 3px; }
+  .entry .title{ font-family: var(--font-head); font-weight:600; font-size: 17px; color: var(--text); margin-bottom: 8px; }
+  .entry .body{ font-size: 12.5px; color: var(--text-dim); max-width: 62ch; }
+
+  .placeholder{ color: #8f8578; }
+
+  /* ===== Skills ===== */
+  .skills{ display:flex; flex-wrap:wrap; gap: 8px; }
+  .skill{
+    border: 1px solid var(--line);
+    padding: 7px 13px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ===== ASCII satellite render panel ===== */
+  .sat-panel{
+    border: 1px solid var(--line);
+    background: #070707;
+    position: relative;
+    overflow: hidden;
+    padding: 36px 16px 32px;
+  }
+  .sat-label{
+    position:absolute; top:12px; left:16px; z-index:2;
+    font-size: 10px; letter-spacing:.14em; color: var(--text-faint);
+  }
+  .sat-legend{
+    position:absolute; top:12px; right:16px; z-index:2;
+    text-align:right;
+    font-size: 10.5px; color: var(--text-faint); line-height:1.7;
+  }
+  .sat-legend .route{ color: var(--text-dim); }
+  .sat-render{
+    font-family: var(--font-mono);
+    line-height: 1;
+    white-space: pre;
+    color: var(--text);
+    margin: 0 auto;
+    display: block;
+    width: max-content;
+    font-size: 12px;
+  }
+  .sat-caption{
+    position:absolute; bottom:10px; left:16px; z-index:2;
+    font-size: 10px; letter-spacing:.06em; color: var(--text-faint);
+  }
+
+  footer{
+    margin-top: 50px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    display:flex; justify-content:space-between;
+    font-size: 11px; letter-spacing:.06em; color: var(--text-faint);
+  }
+
+  @media (max-width: 640px){
+    .name{ font-size: 38px; }
+    .entry{ grid-template-columns: 1fr; gap: 6px; }
+    .entry .period{ padding-top: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .ticker-track{ animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ TICKER TAPE ============ -->
+  <div class="ticker">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+<div class="wrap">
+
+  <!-- ============ HEADER ============ -->
+  <header>
+    <div class="name">Vincent Bittencourt</div>
+    <div class="role">Quantitative Analyst · CS &amp; Math, KTH &amp; SU</div>
+
+    <div class="links">
+      <a class="btn" href="https://www.linkedin.com/in/vincent-bit/">LinkedIn</a>
+      <a class="btn" href="https://github.com/stovince">GitHub</a>
+      <a class="btn" href="mailto:vincent.bittencourt@gmail.com">Email</a>
+    </div>
+
+    <div class="feed">
+      <div class="feed-top">
+        <span>LIVE FEED · NASDAQ STOCKHOLM</span>
+        <span class="session" id="sessionBadge"><span class="dot"></span><span id="sessionText">SESSION CLOSED</span> · <span id="sessionClock">—</span></span>
+      </div>
+
+      <div class="feed-quote">
+        <span class="sym">OMXS30</span>
+        <span class="price" id="feedPrice">—</span>
+        <span class="chg" id="feedChg">—</span>
+      </div>
+
+      <canvas id="waveform"></canvas>
+
+      <div class="feed-stats">
+        <span><span class="lbl">OPEN</span><span id="statOpen">—</span></span>
+        <span><span class="lbl">HIGH</span><span id="statHigh">—</span></span>
+        <span><span class="lbl">LOW</span><span id="statLow">—</span></span>
+        <span><span class="lbl">VOL</span><span id="statVol">—</span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ EXPERIENCE ============ -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Experience</h2>
+      <span class="count">03</span>
+    </div>
+
+    <div class="entry">
+      <div class="period">Nov 2025 — present</div>
+      <div>
+        <div class="org">Söderberg &amp; Partners</div>
+        <div class="title">Quantitative Analyst</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="period">Jul 2025 — Nov 2025</div>
+      <div>
+        <div class="org">DNB Carnegie Investment Bank</div>
+        <div class="title">Settlement &amp; Operations</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="period">Mar 2025 — Jul 2025</div>
+      <div>
+        <div class="org">Swedbank Corporates &amp; Institutions</div>
+        <div class="title">Object Finance</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EDUCATION ============ -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Education</h2>
+      <span class="count">01</span>
+    </div>
+
+    <div class="entry">
+      <div class="period">2025 — 2028</div>
+      <div>
+        <div class="org">KTH Royal Institute of Technology</div>
+        <div class="title">B.Sc. Computer Science and Engineering</div>
+        <div class="body">Relevant coursework: Algorithms and Data Structures, Linear Algebra, Single- and Multivariable Calculus, Parallel and Concurrent Programming.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SKILLS ============ -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Skills</h2>
+      <span class="count">11</span>
+    </div>
+    <div class="skills">
+      <span class="skill">Python</span>
+      <span class="skill">SQL</span>
+      <span class="skill">Java</span>
+      <span class="skill">Go</span>
+      <span class="skill">TypeScript</span>
+      <span class="skill">NumPy</span>
+      <span class="skill">pandas</span>
+      <span class="skill">scikit-learn</span>
+      <span class="skill">pytest</span>
+      <span class="skill">Git</span>
+      <span class="skill">Azure Functions</span>
+    </div>
+  </div>
+
+  <!-- ============ EXTRACURRICULAR ============ -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Extracurricular</h2>
+      <span class="count">02</span>
+    </div>
+
+    <div class="entry">
+      <div class="period"></div>
+      <div>
+        <div class="org">Computer Science Chapter, KTH</div>
+        <div class="title">Sales</div>
+        <div class="body">Corporate outreach for the chapter's business relations group — securing sponsorships and partnerships with firms hiring KTH CS students.</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="period"></div>
+      <div>
+        <div class="org">180 Degrees Consulting</div>
+        <div class="title">Consultant</div>
+        <div class="body">Pro bono strategy consulting for non-profit and social-impact organisations, delivered by a student team on short engagements.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ INTERESTS ============ -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Interests</h2>
+      <span class="count">04</span>
+    </div>
+    <div class="skills">
+      <span class="skill">Chess</span>
+      <span class="skill">Endurance running</span>
+      <span class="skill">Financial markets</span>
+      <span class="skill">Skiing</span>
+    </div>
+  </div>
+
+  <!-- ============ ORBITAL ============ -->
+  <div class="section">
+    <div class="sat-panel">
+      <div class="sat-label">EO PLATFORM — ASCII RENDER</div>
+      <div class="sat-legend">
+        <div class="route">ALT 512 km · SSO</div>
+        <div>LTDN 10:30</div>
+      </div>
+      <pre class="sat-render" id="satellite" aria-hidden="true"></pre>
+      <div class="sat-caption">Z-buffered · Lambertian shading · 12-step glyph ramp</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Vincent Bittencourt</span>
+    <span>vincent.bittencourt@gmail.com</span>
+  </footer>
+
+</div>
+
+<script>
+  // ===== Ticker tape content =====
+  const symbols = [
+    {t:'SPX', v:'5,842.10', c:'+0.34%', up:true},
+    {t:'NDX', v:'20,411.7', c:'-0.12%', up:false},
+    {t:'VIX', v:'14.62', c:'-1.08%', up:false},
+    {t:'BTC', v:'61,204', c:'+2.16%', up:true},
+    {t:'10Y', v:'4.21%', c:'+0.03', up:true},
+    {t:'DAX', v:'18,902.4', c:'+0.21%', up:true},
+    {t:'OMXS30', v:'2,611.9', c:'-0.44%', up:false},
+    {t:'EUR/USD', v:'1.0812', c:'+0.06%', up:true},
+    {t:'WTI', v:'78.41', c:'-0.87%', up:false},
+    {t:'GOLD', v:'2,415.3', c:'+0.29%', up:true},
+  ];
+  const track = document.getElementById('tickerTrack');
+  function buildTicker(){
+    let html = '';
+    for(let rep=0; rep<2; rep++){ // duplicate for seamless loop
+      symbols.forEach(s=>{
+        html += `<span class="item"><b>${s.t}</b>${s.v}<span class="chg ${s.up?'up':'down'}">${s.c}</span></span>`;
+      });
+    }
+    track.innerHTML = html;
+  }
+  buildTicker();
+
+  // ===== Nasdaq Stockholm live feed: OMXS30 with real-time session awareness =====
+  const canvas = document.getElementById('waveform');
+  const ctx = canvas.getContext('2d');
+  const feedPrice = document.getElementById('feedPrice');
+  const feedChg   = document.getElementById('feedChg');
+  const statOpen  = document.getElementById('statOpen');
+  const statHigh  = document.getElementById('statHigh');
+  const statLow   = document.getElementById('statLow');
+  const statVol   = document.getElementById('statVol');
+  const sessionBadge = document.getElementById('sessionBadge');
+  const sessionText  = document.getElementById('sessionText');
+  const sessionClock = document.getElementById('sessionClock');
+
+  function resize(){
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Return the current wall-clock in the Europe/Stockholm timezone regardless
+  // of where the visitor is — so a viewer in Tokyo still sees the Nordic session.
+  function stockholmNow(){
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Stockholm',
+      hour12: false, weekday: 'short',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      timeZoneName: 'short'
+    }).formatToParts(new Date());
+    const get = t => parts.find(p=>p.type===t)?.value;
+    return {
+      weekday: get('weekday'),
+      hh: parseInt(get('hour'),10),
+      mm: parseInt(get('minute'),10),
+      ss: parseInt(get('second'),10),
+      tz: get('timeZoneName') || 'CET'
+    };
+  }
+
+  // Nasdaq Stockholm continuous trading: 09:00 – 17:25 CET/CEST, Mon–Fri
+  function isSessionOpen(t){
+    if(t.weekday === 'Sat' || t.weekday === 'Sun') return false;
+    const mins = t.hh*60 + t.mm;
+    return mins >= 9*60 && mins < 17*60+25;
+  }
+
+  // Simulated OMXS30: start near plausible level and let it walk within the session.
+  // Seed the "open" price with a small daily drift so it varies between page loads.
+  const openPx = 2620 + (Math.random()-0.5) * 28;
+  let px = openPx + (Math.random()-0.5) * 8;
+  let hi = px, lo = px;
+  let vol = 0;                          // ticks up during the session
+  const points = [];
+  const maxPoints = 260;
+
+  // Prime the buffer with a subtle random-walk history so the sparkline
+  // isn't flat on first render.
+  let seed = openPx;
+  for(let i=0; i<maxPoints; i++){
+    seed += (Math.random()-0.5) * 0.6;
+    points.push(seed);
+    hi = Math.max(hi, seed);
+    lo = Math.min(lo, seed);
+  }
+  px = points[points.length-1];
+
+  const fmt = n => n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmtVol = n => {
+    if(n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if(n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+    if(n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+    return n.toFixed(0);
+  };
+
+  function tick(open){
+    if(!open) return; // frozen when the market's closed
+    // small mean-reverting increment plus micro-noise
+    const drift = (openPx - px) * 0.0008;
+    const shock = (Math.random() - 0.5) * 0.9;
+    px += drift + shock;
+    points.push(px);
+    if(points.length > maxPoints) points.shift();
+    if(px > hi) hi = px;
+    if(px < lo) lo = px;
+    vol += 40000 + Math.random() * 90000;
+  }
+
+  function draw(){
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    // faint horizontal grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for(let gy=1; gy<4; gy++){
+      const y = (h/4)*gy;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+
+    // Symmetric y-scale around the mean of the visible window — keeps the
+    // current price near vertical centre even if the recent range is small
+    // relative to earlier peaks. Also enforces a minimum spread so a very
+    // quiet stretch doesn't collapse the line to a flat horizontal.
+    let sum = 0; for(const p of points) sum += p;
+    const mean = sum / points.length;
+    let maxDev = 0;
+    for(const p of points){ const d = Math.abs(p - mean); if(d > maxDev) maxDev = d; }
+    const minSpread = openPx * 0.0015;
+    const spread = Math.max(maxDev, minSpread) * 1.06;
+    const min = mean - spread;
+    const max = mean + spread;
+    const range = max - min;
+    const padTop = h*0.10, padBottom = h*0.10;
+    const usable = h - padTop - padBottom;
+    const stepX = w / (maxPoints - 1);
+
+    // reference line at the opening price, so drift vs open is visible
+    const openY = padTop + usable - ((openPx-min)/range)*usable;
+    if(openY > 0 && openY < h){
+      ctx.setLineDash([4*devicePixelRatio, 6*devicePixelRatio]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.beginPath(); ctx.moveTo(0, openY); ctx.lineTo(w, openY); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // area fill under the line
+    ctx.beginPath();
+    points.forEach((p,i)=>{
+      const x = i*stepX;
+      const y = padTop + usable - ((p-min)/range)*usable;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+    const grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, 'rgba(255,255,255,0.10)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    // price line
+    ctx.beginPath();
+    points.forEach((p,i)=>{
+      const x = i*stepX;
+      const y = padTop + usable - ((p-min)/range)*usable;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = '#e8e8e6';
+    ctx.lineWidth = 1.4 * devicePixelRatio;
+    ctx.stroke();
+
+    // leading dot
+    const lastX = (points.length-1)*stepX;
+    const lastY = padTop + usable - ((points[points.length-1]-min)/range)*usable;
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 3*devicePixelRatio, 0, Math.PI*2);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+
+    // readouts
+    feedPrice.textContent = fmt(px);
+    const diff = px - openPx;
+    const pct  = (diff / openPx) * 100;
+    const arrow = diff >= 0 ? '▲' : '▼';
+    const sign  = diff >= 0 ? '+' : '−';
+    feedChg.textContent = `${arrow} ${sign}${fmt(Math.abs(diff))} (${sign}${Math.abs(pct).toFixed(2)}%)`;
+    feedChg.classList.toggle('up', diff >= 0);
+    feedChg.classList.toggle('dn', diff <  0);
+
+    statOpen.textContent = fmt(openPx);
+    statHigh.textContent = fmt(hi);
+    statLow.textContent  = fmt(lo);
+    statVol.textContent  = fmtVol(vol);
+  }
+
+  function updateSession(){
+    const t = stockholmNow();
+    const open = isSessionOpen(t);
+    sessionText.textContent = open ? 'SESSION OPEN' : 'SESSION CLOSED';
+    sessionBadge.classList.toggle('open', open);
+    const pad = n => String(n).padStart(2, '0');
+    sessionClock.textContent = `${pad(t.hh)}:${pad(t.mm)}:${pad(t.ss)} ${t.tz}`;
+    return open;
+  }
+
+  // If the visitor lands outside trading hours we still want realistic
+  // "last close" stats — pretend today's session already ran once.
+  if(!isSessionOpen(stockholmNow())){
+    for(let i=0; i<420; i++) tick(true);
+  }
+
+  let frame = 0, sessionOpen = updateSession();
+  setInterval(()=>{ sessionOpen = updateSession(); }, 1000);
+
+  function loop(){
+    frame++;
+    if(frame % 20 === 0) tick(sessionOpen);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // ===== ASCII satellite: rotating solid rendered with the donut.c technique =====
+  // Surface points are sampled once in object space, then each frame rotated,
+  // perspective-projected, resolved with a z-buffer and shaded N·L into a glyph ramp.
+  (function(){
+    const el = document.getElementById('satellite');
+    if(!el) return;
+
+    const W = 84, H = 29;
+    const RAMP = '.,-~:;=!*#$@';
+    const K2 = 8;        // camera distance along z
+    const K1 = 56;       // projection scale
+    const ASPECT = 1.7;  // monospace cell is taller than wide
+
+    const pts = [];
+
+    // planar patch sampled on a grid; modFn tints individual samples
+    function addPatch(o, u, v, n, nu, nv, modFn){
+      const L = Math.hypot(n[0], n[1], n[2]);
+      const nx = n[0]/L, ny = n[1]/L, nz = n[2]/L;
+      for(let i=0; i<=nu; i++){
+        const a = i/nu;
+        for(let j=0; j<=nv; j++){
+          const b = j/nv;
+          pts.push({
+            x: o[0] + u[0]*a + v[0]*b,
+            y: o[1] + u[1]*a + v[1]*b,
+            z: o[2] + u[2]*a + v[2]*b,
+            nx, ny, nz,
+            mod: modFn ? modFn(a,b) : 1
+          });
+        }
+      }
+    }
+
+    function addCylinder(axis, a0, a1, r, na, nt){
+      for(let i=0; i<=na; i++){
+        const a = a0 + (a1-a0)*(i/na);
+        for(let j=0; j<nt; j++){
+          const th = (2*Math.PI*j)/nt;
+          const c = Math.cos(th), s = Math.sin(th);
+          if(axis === 'x') pts.push({ x:a, y:r*c, z:r*s, nx:0, ny:c, nz:s, mod:1 });
+          else             pts.push({ x:r*c, y:a, z:r*s, nx:c, ny:0, nz:s, mod:1 });
+        }
+      }
+    }
+
+    // --- spacecraft bus ---
+    const hx=0.46, hy=0.60, hz=0.46;
+    addPatch([ hx,-hy,-hz],[0,2*hy,0],[0,0,2*hz],[ 1,0,0],18,18);
+    addPatch([-hx,-hy,-hz],[0,2*hy,0],[0,0,2*hz],[-1,0,0],18,18);
+    addPatch([-hx, hy,-hz],[2*hx,0,0],[0,0,2*hz],[0, 1,0],18,18);
+    addPatch([-hx,-hy,-hz],[2*hx,0,0],[0,0,2*hz],[0,-1,0],18,18);
+    addPatch([-hx,-hy, hz],[2*hx,0,0],[0,2*hy,0],[0,0, 1],18,18);
+    addPatch([-hx,-hy,-hz],[2*hx,0,0],[0,2*hy,0],[0,0,-1],18,18);
+
+    // --- solar wings, dimmer than the bus with a cell grid for texture ---
+    const cellMod = (a,b)=>{
+      const cu = (a*7)%1, cv = (b*2)%1;
+      return (cu < 0.10 || cv < 0.08) ? 0.34 : 0.78;
+    };
+    const px0 = 0.62, plen = 2.14, phh = 0.36, pz = 0.04;
+    [1,-1].forEach(sgn=>{
+      const ox = sgn>0 ? px0 : -(px0+plen);
+      addPatch([ox,-phh, pz],[plen,0,0],[0,2*phh,0],[0,0, 1],46,16,cellMod);
+      addPatch([ox,-phh,-pz],[plen,0,0],[0,2*phh,0],[0,0,-1],46,16,cellMod);
+      addPatch([ox, phh,-pz],[plen,0,0],[0,0,2*pz],[0, 1,0],46,2);
+      addPatch([ox,-phh,-pz],[plen,0,0],[0,0,2*pz],[0,-1,0],46,2);
+      const ex = sgn>0 ? px0+plen : -(px0+plen);
+      addPatch([ex,-phh,-pz],[0,2*phh,0],[0,0,2*pz],[sgn,0,0],16,2);
+    });
+
+    // --- booms linking bus to wings ---
+    addCylinder('x',  hx,  px0, 0.06, 6, 14);
+    addCylinder('x', -px0, -hx, 0.06, 6, 14);
+
+    // --- mast + parabolic dish ---
+    addCylinder('y', hy, 0.84, 0.05, 6, 14);
+    const R = 0.46, kpar = 1.0, yb = 0.84;
+    for(let i=0; i<=14; i++){
+      const r = R*(i/14);
+      for(let j=0; j<46; j++){
+        const th = (2*Math.PI*j)/46;
+        const x = r*Math.cos(th), z = r*Math.sin(th);
+        const y = yb + kpar*r*r;
+        const gx = -2*kpar*x, gy = 1, gz = -2*kpar*z;
+        const gl = Math.hypot(gx,gy,gz);
+        pts.push({ x, y, z, nx:gx/gl, ny:gy/gl, nz:gz/gl, mod:1 });
+        pts.push({ x, y:y-0.035, z, nx:-gx/gl, ny:-gy/gl, nz:-gz/gl, mod:0.8 });
+      }
+    }
+
+    // --- nadir antenna ---
+    addCylinder('y', -0.95, -hy, 0.035, 6, 12);
+
+    // light direction; camera sits on -z looking toward +z
+    const Lv = [-0.45, 0.70, -0.60];
+    const Ll = Math.hypot(Lv[0],Lv[1],Lv[2]);
+    const Lx=Lv[0]/Ll, Ly=Lv[1]/Ll, Lz=Lv[2]/Ll;
+
+    const buf = new Array(W*H);
+    const zbuf = new Float32Array(W*H);
+    const cx = W/2, cy = H/2 + 3.0; // dish sits high, so bias the centre down
+
+    function render(A, B){
+      buf.fill(' ');
+      zbuf.fill(0);
+      const cosA=Math.cos(A), sinA=Math.sin(A);
+      const cosB=Math.cos(B), sinB=Math.sin(B);
+
+      for(let k=0; k<pts.length; k++){
+        const p = pts[k];
+        // rotate about Y (spin), then about X (tilt)
+        const x1 =  p.x*cosB + p.z*sinB;
+        const z1 = -p.x*sinB + p.z*cosB;
+        const x2 = x1;
+        const y2 = p.y*cosA - z1*sinA;
+        const z2 = p.y*sinA + z1*cosA;
+
+        const nx1 =  p.nx*cosB + p.nz*sinB;
+        const nz1 = -p.nx*sinB + p.nz*cosB;
+        const nx2 = nx1;
+        const ny2 = p.ny*cosA - nz1*sinA;
+        const nz2 = p.ny*sinA + nz1*cosA;
+
+        const zc = z2 + K2;
+        if(zc <= 0.1) continue;
+        const ooz = 1/zc;
+        const sx = Math.round(cx + K1*ASPECT*ooz*x2);
+        const sy = Math.round(cy - K1*ooz*y2);
+        if(sx<0 || sx>=W || sy<0 || sy>=H) continue;
+        const idx = sx + sy*W;
+        if(ooz <= zbuf[idx]) continue;
+        zbuf[idx] = ooz;
+
+        const lum = nx2*Lx + ny2*Ly + nz2*Lz;
+        let li = Math.round((0.12 + 0.88*Math.max(0, lum)) * p.mod * (RAMP.length-1));
+        if(li < 0) li = 0;
+        if(li > RAMP.length-1) li = RAMP.length-1;
+        buf[idx] = RAMP[li];
+      }
+
+      let out = '';
+      for(let y=0; y<H; y++) out += buf.slice(y*W, y*W+W).join('') + (y<H-1 ? '\n' : '');
+      el.textContent = out;
+    }
+
+    // scale the glyph grid to whatever width the panel actually has
+    function satResize(){
+      const avail = el.parentElement.clientWidth - 32;
+      const fs = Math.max(4, Math.min(12, avail / (W * 0.6)));
+      el.style.fontSize = fs.toFixed(2) + 'px';
+    }
+    satResize();
+    window.addEventListener('resize', satResize);
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduced){
+      render(0.38, 0.7); // single static pose
+    } else {
+      let B = 0.4;
+      function satLoop(ts){
+        B += 0.011;
+        const A = 0.34 + 0.20 * Math.sin(ts * 0.00035); // slow tilt wobble
+        render(A, B);
+        requestAnimationFrame(satLoop);
+      }
+      requestAnimationFrame(satLoop);
+    }
+  })();
+</script>
+</body>
+</html>
